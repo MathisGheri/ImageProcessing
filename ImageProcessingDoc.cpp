@@ -298,6 +298,26 @@ void CImageProcessingDoc::OnProcessMosaic()
 	UpdateAllViews(NULL);
 }
 
+static RGBQUAD operator-(RGBQUAD const& fst_elem, RGBQUAD const& sec_elem) noexcept
+{
+	RGBQUAD new_color;
+
+	new_color.rgbRed = (fst_elem.rgbRed < sec_elem.rgbRed) ? 0 : fst_elem.rgbRed - sec_elem.rgbRed;
+	new_color.rgbBlue = (fst_elem.rgbBlue < sec_elem.rgbBlue) ? 0 : fst_elem.rgbBlue - sec_elem.rgbBlue;
+	new_color.rgbGreen = (fst_elem.rgbGreen < sec_elem.rgbGreen) ? 0 : fst_elem.rgbGreen - sec_elem.rgbGreen;
+	return new_color;
+}
+
+static RGBQUAD operator+(RGBQUAD const& fst_elem, RGBQUAD const& sec_elem) noexcept
+{
+	RGBQUAD new_color;
+
+	new_color.rgbRed = add_with_no_overflow(fst_elem.rgbRed, sec_elem.rgbRed);
+	new_color.rgbBlue = add_with_no_overflow(fst_elem.rgbBlue, sec_elem.rgbBlue);
+	new_color.rgbGreen = add_with_no_overflow(fst_elem.rgbGreen, sec_elem.rgbGreen);
+	return new_color;
+}
+
 void CImageProcessingDoc::OnProcessComposite()
 {
 	// TODO: Add a composite code here
@@ -305,11 +325,11 @@ void CImageProcessingDoc::OnProcessComposite()
 		DlgCompositeOption dlg;
 
 		if (dlg.DoModal() == IDOK) {
-			int nOperatorID = dlg.GetCompositeOperatorID();
+			int nOperatorID = dlg.GetCompositeOperatorID(); // 1 = - ; 0 = +
 			CxImage * pSecondImage = dlg.GetSecondImage();
 
-			DWORD width = m_pImage->GetWidth();
-			DWORD height = m_pImage->GetHeight();
+			DWORD width = min(m_pImage->GetWidth(), pSecondImage->GetWidth()) ;
+			DWORD height = min(m_pImage->GetHeight(), pSecondImage->GetHeight());
 			RGBQUAD firstColor;
 			RGBQUAD secondColor;
 			RGBQUAD newColor;
@@ -318,11 +338,16 @@ void CImageProcessingDoc::OnProcessComposite()
 				for (DWORD x = 0; x < width; x++) {
 					firstColor = m_pImage->GetPixelColor(x, y);
 					secondColor = pSecondImage->GetPixelColor(x, y);
-
-					newColor.rgbBlue  = (BYTE)RGB2GRAY(secondColor.rgbRed, secondColor.rgbGreen, secondColor.rgbBlue);
-					newColor.rgbGreen = (BYTE)RGB2GRAY(secondColor.rgbRed, secondColor.rgbGreen, secondColor.rgbBlue);
-					newColor.rgbRed   = (BYTE)RGB2GRAY(secondColor.rgbRed, secondColor.rgbGreen, secondColor.rgbBlue);
-
+					switch (nOperatorID) {
+					case 0: // addition
+						newColor = firstColor + secondColor;
+						break;
+					case 1: // soustraction
+						newColor = firstColor - secondColor;
+						break;
+					default:
+						break;
+					}
 					m_pImage->SetPixelColor(x, y, newColor);
 				}
 			}
